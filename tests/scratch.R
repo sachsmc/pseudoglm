@@ -10,7 +10,7 @@ for(i in 1:nsim) {
     fit <- cumincglm(
         formula = Hist(obsT, indi) ~ Z,
         time = 2,
-        cause = "1",
+        cause = "2",
         link = "log",
         data = test)
 
