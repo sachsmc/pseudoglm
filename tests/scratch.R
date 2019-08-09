@@ -7,10 +7,15 @@ estbet.z <- rep(NA, nsim)
 
 for(i in 1:nsim) {
     test <- gen_data(n=200)
-    fit <- cumincglm(formula = Hist(obsT, indi) ~ Z, time = 2, cause = "1", link = "log", data = test)
+    fit <- cumincglm(
+        formula = Hist(obsT, indi) ~ Z,
+        time = 2,
+        cause = "1",
+        link = "log",
+        data = test)
 
-    estvar.z[i] <- sqrt(diag(fit[[2]]))[2]
-    estbet.z[i] <- fit[[1]]$coefficients[2]
+    estvar.z[i] <- sqrt(diag(vcov(fit)))[2]
+    estbet.z[i] <- fit$coefficients[2]
 
 }
 
@@ -31,8 +36,8 @@ for(i in 1:nsim) {
 
     fit <- cumincglm(formula = Hist(obsT, indi) ~ Z, time = 2, cause = "1", link = "log", data = test)
 
-    estvar.z[i] <- sqrt(diag(fit[[2]]))[2]
-    estbet.z[i] <- fit[[1]]$coefficients[2]
+    estvar.z[i] <- sqrt(diag(vcov(fit)))[2]
+    estbet.z[i] <- fit$coefficients[2]
 
 }
 

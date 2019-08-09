@@ -1,5 +1,12 @@
 #' Generalized linear models for cumulative incidence
 #'
+#' Using pseudo observations for the cumulative incidence, this function then runs a generalized
+#' linear model and estimates the variance correctly according to Overgaard et al (2018). The
+#' link function can be "identity" for estimating differences in the cumulative incidence, "log"
+#' for estimating ratios, and any of the other link functions supported by \link[stats]{quasi}.
+#'
+#' @return A pseudoglm object, with its own methods for print, summary, and vcov. It inherits from glm, so predict and other glm methods are supported.
+#'
 #' @param formula A formula specifying the model. The left hand side must be a \link[prodlim]{Hist} object. The right hand side is the usual linear combination of covariates.
 #' @param time Numeric constant specifying the time at which the cumulative incidence or survival probability effect estimates are desired.
 #' @param cause Character constant specifying the cause indicator of interest.
@@ -13,8 +20,6 @@ cumincglm <- function(formula, time, cause = "1", link = "identity", data, ...) 
 
     marginal.estimate <- prodlim::prodlim(update.formula(formula, . ~ 1), data = data)
     newdata <- data
-
-
 
     newdata[["pseudo.vals"]] <- c(prodlim::jackknife(marginal.estimate, times = time, cause = cause))
     if(marginal.estimate$model == "survival") newdata[["pseudo.vals"]] <- 1 - newdata[["pseudo.vals"]]
@@ -184,6 +189,113 @@ cumincglm <- function(formula, time, cause = "1", link = "identity", data, ...) 
 
     ovg.vcov <- Minvhat %*% Sigma %*% t(Minvhat) / noobs
 
-    list(fit.lin, ovg.vcov)
+    fit.lin$corrected.vcov <- ovg.vcov
+    fit.lin$time <- time
+    fit.lin$cause <- cause
+    fit.lin$link <- link
+
+    class(fit.lin) <- c("pseudoglm", class(fit.lin))
+
+    fit.lin
 
 }
+
+
+#' Print method for pseudoglm
+#'
+#' @export
+#'
+print.pseudoglm <- function (x, digits = max(3L, getOption("digits") - 3L), ...)
+{
+    cat("\nCall:  ", paste(deparse(x$call), sep = "\n",
+                           collapse = "\n"), "\n\n", sep = "")
+    cat("\nModel for the", x$link,  "cumulative incidence of cause", x$cause, "at time", x$time, "\n\n")
+    if (length(coef(x))) {
+        cat("Coefficients")
+        if (is.character(co <- x$contrasts))
+            cat("  [contrasts: ", apply(cbind(names(co),
+                                              co), 1L, paste, collapse = "="), "]")
+        cat(":\n")
+        print.default(format(x$coefficients, digits = digits),
+                      print.gap = 2, quote = FALSE)
+    }
+    else cat("No coefficients\n\n")
+    cat("\nDegrees of Freedom:", x$df.null, "Total (i.e. Null); ",
+        x$df.residual, "Residual\n")
+    if (nzchar(mess <- naprint(x$na.action)))
+        cat("  (", mess, ")\n", sep = "")
+
+    cat("\n")
+    invisible(x)
+}
+
+
+#' Vcov method
+#' @export
+vcov.pseudoglm <- function(object, complete = TRUE, ...) {
+
+    object$corrected.vcov
+
+}
+
+
+#' Summary method
+#'
+#'
+#' @export
+#'
+summary.pseudoglm <- function (object, correlation = FALSE, symbolic.cor = FALSE,
+                               ...)
+{
+    df.r <- object$df.residual
+    aliased <- is.na(coef(object))
+    p <- object$rank
+    if (p > 0) {
+        p1 <- 1L:p
+        Qr <- object$qr
+        coef.p <- object$coefficients[Qr$pivot[p1]]
+        covmat.unscaled <- object$corrected.vcov[p1, p1]
+        dimnames(covmat.unscaled) <- list(names(coef.p), names(coef.p))
+        covmat <- covmat.unscaled
+        var.cf <- diag(covmat)
+        s.err <- sqrt(var.cf)
+        tvalue <- coef.p/s.err
+        dn <- c("Estimate", "Std. Error")
+        if (df.r > 0) {
+            pvalue <- 2 * pnorm(-abs(tvalue))
+            coef.table <- cbind(coef.p, s.err, tvalue, pvalue)
+            dimnames(coef.table) <- list(names(coef.p), c(dn,
+                                                          "z value", "Pr(>|z|)"))
+        } else {
+            coef.table <- cbind(coef.p, NaN, NaN, NaN)
+            dimnames(coef.table) <- list(names(coef.p), c(dn,
+                                                          "z value", "Pr(>|z|)"))
+        }
+        df.f <- NCOL(Qr$qr)
+    }
+    else {
+        coef.table <- matrix(, 0L, 4L)
+        dimnames(coef.table) <- list(NULL, c("Estimate",
+                                             "Std. Error", "z value", "Pr(>|z|)"))
+        covmat.unscaled <- covmat <- matrix(, 0L, 0L)
+        df.f <- length(aliased)
+    }
+    keep <- match(c("call", "terms", "family",
+                    "deviance", "aic", "contrasts", "df.residual",
+                    "null.deviance", "df.null", "iter",
+                    "na.action"), names(object), 0L)
+    ans <- c(object[keep], list(deviance.resid = residuals(object,
+                                                           type = "deviance"), coefficients = coef.table,
+                                aliased = aliased, dispersion = 1, df = c(object$rank,
+                                                                                   df.r, df.f), cov.unscaled = covmat.unscaled, cov.scaled = covmat))
+    if (correlation && p > 0) {
+        dd <- sqrt(diag(covmat.unscaled))
+        ans$correlation <- covmat.unscaled/outer(dd, dd)
+        ans$symbolic.cor <- symbolic.cor
+    }
+    class(ans) <- "summary.glm"
+    return(ans)
+}
+
+
+

@@ -19,6 +19,12 @@ cumincglm(formula, time, cause = "1", link = "identity", data, ...)
 
 \item{...}{Other arguments passed to \link[stats]{glm} such as weights, subset, etc.}
 }
+\value{
+A pseudoglm object, with its own methods for print, summary, and vcov. It inherits from glm, so predict and other glm methods are supported.
+}
 \description{
-Generalized linear models for cumulative incidence
+Using pseudo observations for the cumulative incidence, this function then runs a generalized
+linear model and estimates the variance correctly according to Overgaard et al (2018). The
+link function can be "identity" for estimating differences in the cumulative incidence, "log"
+for estimating ratios, and any of the other link functions supported by \link[stats]{quasi}.
 }
