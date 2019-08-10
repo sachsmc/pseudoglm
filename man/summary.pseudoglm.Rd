@@ -5,7 +5,7 @@
 \title{Summary method}
 \usage{
 \method{summary}{pseudoglm}(object, correlation = FALSE,
-  symbolic.cor = FALSE, ...)
+  symbolic.cor = FALSE, type = "corrected", ...)
 }
 \description{
 Summary method
