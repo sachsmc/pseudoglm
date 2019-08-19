@@ -78,3 +78,33 @@ estvar %>% group_by(type) %>% summarize(mint = mean(intercept), mz = mean(Z))
 
 library(ggplot2)
 ggplot(estvar, aes(x = factor(type), y = Z)) + geom_boxplot()
+
+
+
+
+nsim <- 1000
+estbet.z <- matrix(NA, ncol = 4, nrow = nsim)
+se.inf <- matrix(NA, ncol = 4, nrow = nsim)
+for(i in 1:nsim) {
+    test <- gen_data(n=200)
+
+    fit2 <- cumincglm.infjack(
+        formula = Surv(obsT, factor(indi)) ~ Z * pseudo.time,
+        time = 1:2,
+        cause = "2",
+        link = "log",
+        data = test)
+
+    estbet.z[i, ] <- fit2$coefficients
+    se.inf[i, ] <- sqrt(diag(vcov(fit2, type = "cluster")))
+
+}
+
+se.emp <- sqrt(diag(cov(estbet.z)))
+par(mfrow = c(2, 2))
+for(i in 1:4) {
+
+    hist(se.inf[, i])
+    abline(v = se.emp[i], col = "red")
+
+}

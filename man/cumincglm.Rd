@@ -4,7 +4,8 @@
 \alias{cumincglm}
 \title{Generalized linear models for cumulative incidence}
 \usage{
-cumincglm(formula, time, cause = "1", link = "identity", data, ...)
+cumincglm(formula, time, cause = "1", link = "identity", data,
+  type = "inf", ...)
 }
 \arguments{
 \item{formula}{A formula specifying the model. The left hand side must be a \link[prodlim]{Hist} object. The right hand side is the usual linear combination of covariates.}

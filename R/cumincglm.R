@@ -21,6 +21,8 @@ cumincglm <- function(formula, time, cause = "1", link = "identity", data, ...) 
 
     stopifnot(length(time) == 1)
 
+
+
     marginal.estimate <- prodlim::prodlim(update.formula(formula, . ~ 1), data = data)
 
     newdata <- do.call(rbind, lapply(1:length(time), function(i) data))
@@ -106,7 +108,7 @@ print.pseudoglm <- function (x, digits = max(3L, getOption("digits") - 3L), ...)
 
 #' Vcov method
 #'
-#' @param type one of "corrected", "robust", "naive"
+#' @param type one of "corrected", "robust", "naive", or "cluster"
 #'
 #' @export
 vcov.pseudoglm <- function(object, type = "corrected", ...) {
@@ -266,7 +268,12 @@ vcov.pseudoglm <- function(object, type = "corrected", ...) {
         stats::vcov(object)
 
 
-    } else stop("unknown variance type")
+    } else if(type == "cluster") {
+
+        class(object) <- c("glm", "lm")
+        sandwich::vcovCL(object, cluster = object$cluster.id)
+
+        } else stop("unknown variance type")
 
 }
 
