@@ -89,13 +89,18 @@ for(i in 1:nsim) {
     test <- gen_data(n=200)
 
     fit2 <- cumincglm.infjack(
-        formula = Surv(obsT, factor(indi)) ~ Z * pseudo.time,
-        time = 1:2,
-        cause = "2",
-        link = "log",
+        formula = Surv(obsT, factor(indi)) ~ Z,
+        time = 1,
+        cause = "1",
+        link = "identity",
         data = test)
 
-    estbet.z[i, ] <- fit2$coefficients
+    fit <- cumincglm(formula = Hist(obsT, indi) ~ Z,
+                     time = 1, cause = "1", link = "identity", data = test)
+
+
+
+    estbet.z[i, ] <- c(fit2$coefficients, fit$coefficients)
     se.inf[i, ] <- sqrt(diag(vcov(fit2, type = "cluster")))
 
 }
@@ -108,3 +113,88 @@ for(i in 1:4) {
     abline(v = se.emp[i], col = "red")
 
 }
+
+
+
+nsim <- 1000
+estbet.z <- matrix(NA, ncol = 4, nrow = nsim)
+
+for(i in 1:nsim) {
+    test <- gen_data(n=200)
+
+    fit2 <- cumincglm.infjack(
+        formula = Surv(obsT, factor(indi)) ~ Z,
+        time = 1,
+        cause = "1",
+        link = "identity",
+        data = test)
+
+    fit <- cumincglm(formula = Hist(obsT, indi) ~ Z,
+                     time = 1, cause = "1", link = "identity", data = test)
+
+    fit3 <- cumincglm.ipcw(formula = Surv(obsT, factor(indi)) ~ Z,
+                     time = 1, cause = "1", link = "identity", data = test)
+
+
+    fit4 <- cumincglm.ipcw(formula = Surv(obsT, factor(indi)) ~ Z,
+                           time = 1, cause = "1", link = "identity", data = test,
+                           model.censoring = "coxph")
+
+    estbet.z[i, ] <- c(infjack = fit2$coefficients[2],
+                       regjack = fit$coefficients[2],
+                       ipcw.aareg =  fit3$coefficients[2],
+                       ipcw.coxph = fit4$coefficients[2])
+
+}
+
+estbeta <- as.data.frame(estbet.z)
+colnames(estbeta) = c("infjack", "regjack", "ipcw.aareg", "ipcw.cox")
+
+library(ggplot2)
+ggplot(tidyr::gather(estbeta), aes(x = value, y = key)) + geom_violin()
+summary(estbeta)
+
+
+
+nsim <- 500
+estbet.z <- matrix(NA, ncol = 5, nrow = nsim)
+
+for(i in 1:nsim) {
+    test <- generate_data(n=400, scenario = "D")
+
+    fit2 <- cumincglm.infjack(
+        formula = Surv(Tout, factor(delta)) ~ X1 + X2,
+        time = 26.5,
+        cause = "1",
+        link = "identity",
+        data = test)
+
+    fit <- cumincglm(formula = Hist(Tout, delta) ~ X1 + X2,
+                     time = 26.5, cause = "1", link = "identity", data = test)
+
+    fit3 <- cumincglm.ipcw(formula = Surv(Tout, factor(delta)) ~ X1 + X2,
+                           time = 26.5, cause = "1", link = "identity", data = test)
+
+
+    fit4 <- cumincglm.ipcw(formula = Surv(Tout, factor(delta)) ~ X1 + X2,
+                           time = 26.5, cause = "1", link = "identity", data = test,
+                           model.censoring = "coxph")
+
+    fittrue <- lm(trueT ~ X1 + X2, data = test)
+
+    estbet.z[i, ] <- c(infjack = fit2$coefficients[2],
+                       regjack = fit$coefficients[2],
+                       ipcw.aareg =  fit3$coefficients[2],
+                       ipcw.coxph = fit4$coefficients[2],
+                       true = fittrue$coefficients[2])
+
+}
+
+estbeta <- as.data.frame(estbet.z[, 1:4] - estbet.z[, 5])
+colnames(estbeta) = c("infjack", "regjack", "ipcw.aareg", "ipcw.cox")
+
+library(ggplot2)
+ggplot(tidyr::gather(estbeta), aes(x = value, y = key))  +
+    geom_vline(xintercept = 0, col = "red") +
+    geom_boxplot()
+summary(estbeta)

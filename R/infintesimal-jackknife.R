@@ -28,9 +28,11 @@ cumincglm.infjack <- function(formula, time, cause = "1", link = "identity", dat
 
     pstate <- marginal.estimate2$pstate[tdex, which(marginal.estimate2$states == cause)]
 
+
+    ## S(t) + (n-1)[S(t) -S_{-i}(t)]
     jackk2 <- matrix(pstate, nrow = marginal.estimate2$n, ncol = length(time), byrow = TRUE) +
-        marginal.estimate2$n *
-        (marginal.estimate2$influence.pstate[, tdex,
+        (marginal.estimate2$n - 1) *
+        (marginal.estimate2$influence.pstate[, tdex + 1,
                                              which(marginal.estimate2$states == cause)])
 
     newdata <- do.call(rbind, lapply(1:length(time), function(i) data))
@@ -38,7 +40,7 @@ cumincglm.infjack <- function(formula, time, cause = "1", link = "identity", dat
     newdata[["pseudo.time"]] <- rep(time, each = nrow(jackk2))
     newdata[["cluster.id"]] <- rep(1:nrow(data), length(time))
 
-    if(marginal.estimate2$type == "survival") newdata[["pseudo.vals"]] <- 1 - newdata[["pseudo.vals"]]
+    if(!inherits(marginal.estimate2, "survfitms")) newdata[["pseudo.vals"]] <- 1 - newdata[["pseudo.vals"]]
 
     newdata[["startmu"]] <- rep(mean(newdata$pseudo.vals), nrow(newdata))
 
@@ -49,7 +51,7 @@ cumincglm.infjack <- function(formula, time, cause = "1", link = "identity", dat
 
     ## update variance estimate
 
-    if(marginal.estimate2$type == "survival") {
+    if(!inherits(marginal.estimate2, "survfitms")) {
 
         datamat <- cbind(marginal.estimate$model.response[, "time"],
                          marginal.estimate$model.response[, "status"] != 0, ## not censored indicator

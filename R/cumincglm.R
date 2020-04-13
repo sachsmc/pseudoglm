@@ -21,8 +21,6 @@ cumincglm <- function(formula, time, cause = "1", link = "identity", data, ...) 
 
     stopifnot(length(time) == 1)
 
-
-
     marginal.estimate <- prodlim::prodlim(update.formula(formula, . ~ 1), data = data)
 
     newdata <- do.call(rbind, lapply(1:length(time), function(i) data))
