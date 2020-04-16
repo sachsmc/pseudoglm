@@ -67,6 +67,7 @@ cumincglm <- function(formula, time, cause = "1", link = "identity", data, ...) 
     fit.lin$time <- time
     fit.lin$cause <- cause
     fit.lin$link <- link
+    fit.lin$type <- "cuminc"
 
     class(fit.lin) <- c("pseudoglm", class(fit.lin))
 
@@ -81,9 +82,10 @@ cumincglm <- function(formula, time, cause = "1", link = "identity", data, ...) 
 #'
 print.pseudoglm <- function (x, digits = max(3L, getOption("digits") - 3L), ...)
 {
+    outcome <- switch(x$type, rmean = "restricted mean", cuminc = "cumulative incidence")
     cat("\nCall:  ", paste(deparse(x$call), sep = "\n",
                            collapse = "\n"), "\n\n", sep = "")
-    cat("\nModel for the", x$link,  "cumulative incidence of cause", x$cause, "at time", x$time, "\n\n")
+    cat("\nModel for the", x$link, outcome, "of cause", x$cause, "at time", x$time, "\n\n")
     if (length(coef(x))) {
         cat("Coefficients")
         if (is.character(co <- x$contrasts))
@@ -335,5 +337,123 @@ summary.pseudoglm <- function (object, correlation = FALSE, symbolic.cor = FALSE
     return(ans)
 }
 
+
+
+#' Generalized linear models for restricted mean
+#'
+#' Using pseudo observations, this function then runs a generalized
+#' linear model. The link function can be "identity" for estimating
+#' differences in the restricted mean, "log"
+#' for estimating ratios, and any of the other link functions supported by \link[stats]{quasi}.
+#'
+#' @return A pseudoglm object, with its own methods for print, summary, and vcov. It inherits from glm, so predict and other glm methods are supported.
+#'
+#' @param formula A formula specifying the model. The left hand side must be a \link[prodlim]{Hist} object. The right hand side is the usual linear combination of covariates.
+#' @param time Numeric constant specifying the time at which the cumulative incidence or survival probability effect estimates are desired.
+#' @param cause Character constant specifying the cause indicator of interest.
+#' @param link Link function for the cumulative incidence regression model.
+#' @param data Data frame in which all variables of formula can be interpreted.
+#' @param ... Other arguments passed to \link[stats]{glm} such as weights, subset, etc.
+#'
+#' @export
+#'
+rmeanglm <- function(formula, time, cause = "1", link = "identity", data, ...) {
+
+
+    stopifnot(length(time) == 1)
+
+    marginal.estimate <- prodlim::prodlim(update.formula(formula, . ~ 1), data = data)
+
+    outcome <- model.response(model.frame(update.formula(formula, . ~ 1), data = data))
+    thistype <- ifelse(attr(outcome, "model") == "survival", "surv", "cuminc")
+    newdata <- do.call(rbind, lapply(1:length(time), function(i) data))
+
+    uptimes <- c(0, sort(unique(outcome[outcome[, 1] <= time, 1])))
+
+    sfit <- predict(marginal.estimate,
+                     type = thistype,
+                     cause = cause, times  = uptimes)
+
+    jackk <- prodlim::jackknife(marginal.estimate, times = uptimes, cause = cause)
+
+    smat <- matrix(rep(sfit, each = nrow(jackk)), nrow = nrow(jackk), ncol = ncol(jackk))
+    Smi <- (jackk - nrow(outcome) * smat) / (1 - nrow(outcome))
+
+    POi <- pseudo_rmst2(sfit, Smi, uptimes, time, type = thistype)
+    # individuals in rows, times in columns
+
+    newdata[["pseudo.vals"]] <- c(POi)
+    newdata[["pseudo.time"]] <- rep(time, each = nrow(jackk))
+
+    newdata[["startmu"]] <- rep(mean(newdata$pseudo.vals), nrow(newdata))
+
+    fit.lin <- stats::glm(update.formula(formula, pseudo.vals ~ .),
+                          family = quasi(link = link, variance = "constant"),
+                          mustart = startmu,
+                          data = newdata, x = TRUE, ...)
+
+    ## update variance estimate
+
+    if(marginal.estimate$model == "survival") {
+
+        datamat <- cbind(marginal.estimate$model.response[, "time"],
+                         marginal.estimate$model.response[, "status"] != 0, ## not censored indicator
+                         as.character(marginal.estimate$model.response[, "status"]) == cause,
+                         marginal.estimate$model.response[, "status"] == 0 ## censored indicator
+        )
+
+    } else {
+
+        dmatframe <- as.matrix(model.frame(update.formula(formula, .~1), data = newdata)[, 1])
+        colnames(dmatframe) <- c("time", "status", "event")
+
+        datamat <- cbind(dmatframe[, "time"],
+                         dmatframe[, "status"] != 0,
+                         dmatframe[, "event"] == as.numeric(cause),
+                         dmatframe[, "status"] == 0)
+
+    }
+
+
+    #    fit.lin$corrected.vcov <- ovg.vcov
+    fit.lin$datamat <- datamat
+    fit.lin$time <- time
+    fit.lin$cause <- cause
+    fit.lin$link <- link
+    fit.lin$type <- "rmean"
+
+    class(fit.lin) <- c("pseudoglm", class(fit.lin))
+
+    fit.lin
+
+}
+
+
+#' Compute restricted mean survival
+#'
+#' Written by Terry Therneau (2019)
+#'
+#' @param fit Survfit
+#' @param tmax Max time
+pseudo_rmst2 <- function(sfit, jacks, times, tmax, type = "cuminc") {
+    # extract the RMST, and the leverage of each subject on the RMST
+
+    rsum <- function(y, x) {  # sum of rectangles
+        keep <- which(x < tmax)
+        width <- diff(c(x[keep], tmax))
+        sum(width * y[keep])
+    }
+
+    if (type == "survival") { # ordinary survival
+        rmst <- rsum(sfit, times)
+        ijack <- apply(jacks, 1, rsum)
+        length(ijack) * rmst - (length(ijack) -1)* ijack
+    }
+    else {
+        rmst <- rsum(sfit, times)
+        ijack <- apply(jacks, 1, rsum, times)
+        length(ijack) * rep(rmst, each= length(ijack)) - (length(ijack)-1)*ijack
+    }
+}
 
 

@@ -158,29 +158,30 @@ summary(estbeta)
 
 nsim <- 500
 estbet.z <- matrix(NA, ncol = 5, nrow = nsim)
-
+tmax <- 45
 for(i in 1:nsim) {
-    test <- generate_data(n=400, scenario = "D")
+    test <- generate_data(n=400, scenario = "A")
 
-    fit2 <- cumincglm.infjack(
+    fit2 <- rmeanglm.infjack(
         formula = Surv(Tout, factor(delta)) ~ X1 + X2,
-        time = 26.5,
+        time = tmax,
         cause = "1",
         link = "identity",
         data = test)
 
-    fit <- cumincglm(formula = Hist(Tout, delta) ~ X1 + X2,
-                     time = 26.5, cause = "1", link = "identity", data = test)
+    fit <- rmeanglm(formula = Hist(Tout, delta) ~ X1 + X2,
+                     time = tmax, cause = "1", link = "identity", data = test)
 
-    fit3 <- cumincglm.ipcw(formula = Surv(Tout, factor(delta)) ~ X1 + X2,
-                           time = 26.5, cause = "1", link = "identity", data = test)
+    fit3 <- rmeanglm.ipcw(formula = Surv(Tout, factor(delta)) ~ X1 + X2,
+                           time = tmax, cause = "1", link = "identity", data = test)
 
 
-    fit4 <- cumincglm.ipcw(formula = Surv(Tout, factor(delta)) ~ X1 + X2,
-                           time = 26.5, cause = "1", link = "identity", data = test,
+    fit4 <- rmeanglm.ipcw(formula = Surv(Tout, factor(delta)) ~ X1 + X2,
+                           time = tmax, cause = "1", link = "identity", data = test,
                            model.censoring = "coxph")
 
-    fittrue <- lm(trueT ~ X1 + X2, data = test)
+    test$trueV <- with(test, (tmax - pmin(Y, tmax)) * (Y < Y2))
+    fittrue <- lm(trueV ~ X1 + X2, data = test)
 
     estbet.z[i, ] <- c(infjack = fit2$coefficients[2],
                        regjack = fit$coefficients[2],
@@ -198,3 +199,19 @@ ggplot(tidyr::gather(estbeta), aes(x = value, y = key))  +
     geom_vline(xintercept = 0, col = "red") +
     geom_boxplot()
 summary(estbeta)
+
+
+fit <- rmeanglm(formula = Hist(Tout, delta) ~ I(X1 > 0),
+                time = tmax, cause = "1", link = "identity", data = test)
+fit2 <- rmeanglm.infjack(
+    formula = Surv(Tout, factor(delta)) ~ I(X1 > 0),
+    time = tmax,
+    cause = "1",
+    link = "identity",
+    data = test)
+
+sfit <- survfit(Surv(pmin(Y, Y2), factor(ifelse(Y < Y2, 1, 2))) ~ I(X1 > 0), data = test)
+print(sfit, rmean = tmax)
+
+test$trueV <- with(test, (tmax - pmin(Y, tmax)) * (Y < Y2))
+

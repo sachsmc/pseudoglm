@@ -3,6 +3,5 @@ TODO
 
 - handle surv and rmean for infintesimal
 - Reconsider naming of package and functions
-- Feature: handle covariate dependent censoring
 - Feature: handle restricted mean survival outcome
 - Vignette and paper
