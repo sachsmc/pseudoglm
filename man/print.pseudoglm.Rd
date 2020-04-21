@@ -4,8 +4,7 @@
 \alias{print.pseudoglm}
 \title{Print method for pseudoglm}
 \usage{
-\method{print}{pseudoglm}(x, digits = max(3L, getOption("digits") - 3L),
-  ...)
+\method{print}{pseudoglm}(x, digits = max(3L, getOption("digits") - 3L), ...)
 }
 \description{
 Print method for pseudoglm

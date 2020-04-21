@@ -4,10 +4,10 @@
 \alias{vcov.pseudoglm}
 \title{Vcov method}
 \usage{
-\method{vcov}{pseudoglm}(object, type = "corrected", ...)
+\method{vcov}{pseudoglm}(object, type = "robust", ...)
 }
 \arguments{
-\item{type}{one of "corrected", "robust", "naive"}
+\item{type}{one of "corrected", "robust", "naive", or "cluster"}
 }
 \description{
 Vcov method

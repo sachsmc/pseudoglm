@@ -4,8 +4,13 @@
 \alias{summary.pseudoglm}
 \title{Summary method}
 \usage{
-\method{summary}{pseudoglm}(object, correlation = FALSE,
-  symbolic.cor = FALSE, type = "corrected", ...)
+\method{summary}{pseudoglm}(
+  object,
+  correlation = FALSE,
+  symbolic.cor = FALSE,
+  type = "robust",
+  ...
+)
 }
 \description{
 Summary method

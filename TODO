@@ -6,3 +6,5 @@ TODO
     - bias and CI coverage, for non-null scenarios and different link functions for CI
     - relative efficiency and performance of methods
     - robustness to covariate dependent censoring
+- documentation for simulation set up
+- reorganize functions
