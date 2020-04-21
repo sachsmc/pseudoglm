@@ -1,7 +1,8 @@
 TODO
 ----
 
-- handle surv and rmean for infintesimal
-- Reconsider naming of package and functions
-- Feature: handle restricted mean survival outcome
-- Vignette and paper
+- set up simulation functions
+    - null scenario for type I error
+    - bias and CI coverage, for non-null scenarios and different link functions for CI
+    - relative efficiency and performance of methods
+    - robustness to covariate dependent censoring

@@ -1,22 +1,6 @@
 #' Generate survival data for analysis
 #'
-#' 500 subjects, 20 variables, about XX% cumulative incidence. 5 variables truly associated,
-#' some linear, some wonky associations, an interaction, and some variables correlated.
-#'
-#' n Sample size
-#' Character designating the simulation scenario:
-#'                 0 = NULL, no association,
-#'                 A = simple, one variable is linearly associated with IRIS,
-#'                 B = spline of 5
-#'                 C = wonky, interactions, nonlinearities, etc.
-#'                 D = same as C
-#' Proportion of missing binary Y values (random censoring)
-#'
-#'A data frame with X variables, censored survival times (competing risk w death), and true cumulative incidence at Tstar weeks
-#'
-#'
-#'
-#'
+
 
 switch_scenario <- function(scenario) {
 
