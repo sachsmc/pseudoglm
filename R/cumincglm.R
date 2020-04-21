@@ -111,7 +111,7 @@ print.pseudoglm <- function (x, digits = max(3L, getOption("digits") - 3L), ...)
 #' @param type one of "corrected", "robust", "naive", or "cluster"
 #'
 #' @export
-vcov.pseudoglm <- function(object, type = "corrected", ...) {
+vcov.pseudoglm <- function(object, type = "robust", ...) {
 
     if(type == "corrected") {
 
@@ -284,7 +284,7 @@ vcov.pseudoglm <- function(object, type = "corrected", ...) {
 #' @export
 #'
 summary.pseudoglm <- function (object, correlation = FALSE, symbolic.cor = FALSE,
-                               type = "corrected",
+                               type = "robust",
                                ...)
 {
     df.r <- object$df.residual
