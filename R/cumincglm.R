@@ -27,8 +27,11 @@ cumincglm <- function(formula, time, cause = "1", link = "identity", data, ...) 
 
     jackk <- prodlim::jackknife(marginal.estimate, times = time, cause = cause)
 
+    nn <- nrow(jackk)
+    if(is.null(nn)) nn <- length(jackk)
+
     newdata[["pseudo.vals"]] <- c(jackk)
-    newdata[["pseudo.time"]] <- rep(time, each = nrow(jackk))
+    newdata[["pseudo.time"]] <- rep(time, each = nn)
 
     if(marginal.estimate$model == "survival") newdata[["pseudo.vals"]] <- 1 - newdata[["pseudo.vals"]]
 

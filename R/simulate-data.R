@@ -177,7 +177,7 @@ sampletimesfunc <- function(mat,b1,g1,b2,g2) {
 #' @export
 #'
 
-genset_func<-function(n, beta1, gamma1, beta2, gamma2, beta.cens = c(0,0,0,0),
+genset_func<-function(n, beta1, gamma1, beta2, gamma2, beta.cens = c(0,0,0),
                       cens.rate = .2){
 
     tr<-rbinom(n,1,0.5)
@@ -198,12 +198,14 @@ genset_func<-function(n, beta1, gamma1, beta2, gamma2, beta.cens = c(0,0,0,0),
 
     Touts<-sampletimesfunc(matx,beta10,gamma1,beta20,gamma2)
 
-    lambda <- exp(matx %*% beta.cens)
-    Cen<- rweibull(n, scale = lambda, shape = gamma1*2)
+    cen0 <- uniroot(function(c0) {
+        lambda <- exp(matx %*% c(c0, beta.cens))
+        Cen<- rweibull(n, scale = lambda, shape = gamma1*2)
+        cens.rate - mean(Cen < Touts)
+    }, c(-1e4, 100))$root
 
-    ## adjust censoring rate
-    adj.cenrate <-  cens.rate - mean(Cen < Touts)
-    if(abs(adj.cenrate) > .1) stop("Censoring is off by", adj.cenrate,". Adjust intercept!")
+    lambda <- exp(matx %*% c(cen0, beta.cens))
+    Cen<- rweibull(n, scale = lambda, shape = gamma1*2)
 
     type1<-rbinom(n,1,haz11(Touts,matx,beta10,gamma1)/(haz11(Touts,matx,beta10,gamma1)+
                                                            haz11(Touts,matx,beta20,gamma2)))
@@ -223,20 +225,74 @@ genset_func<-function(n, beta1, gamma1, beta2, gamma2, beta.cens = c(0,0,0,0),
     return(dat1)
 }
 
-#' Simulate a dataset
+#' Simulate a dataset and run the analyses
 #'
 #' Wrapper for the used scenarios
 #'
-#' @param n Sample zie
+#' @param n Sample size
 #' @param scenario Character identifying the scenario
 #' @param beta.cens Coefficients for the censoring distribution
+#' @param link Link function
 
-simulate_data <- function(n, scenario = "0", beta.cens = c(1,0,0,0)) {
+simulate_data <- function(n, scenario = "0", beta.cens = c(0,0,0), cens.rate = .2,
+                          link = "identity") {
 
 
     b <- switch_scenario(scenario, beta.cens)
-    data <- genset_func(n, b$b1, b$g1, b$b2, b$g2, b$beta.cens, cens.rate = .2)
-    data
+    data <- genset_func(n, b$b1, b$g1, b$b2, b$g2, b$beta.cens, cens.rate = cens.rate)
+
+    tmax <- quantile(data$Touts, .9)
+
+    results <- list(
+        ci.jack = cumincglm(
+            formula = Hist(Toutfin, type1b) ~ tr + V5 + V6,
+            time = tmax,
+            cause = "1",
+            link = link,
+            data = data),
+        ci.infjack = cumincglm.infjack(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
+                                       time = tmax, cause = "1", link = link, data = data),
+        ci.ipcwaalen = cumincglm.ipcw(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
+                                      time = tmax, cause = "1", link = link, data = data,
+                                      model.censoring = "aareg"),
+        ci.ipcwcoxph = cumincglm.ipcw(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
+                                      time = tmax, cause = "1", link = link, data = data,
+                                      model.censoring = "coxph"),
+        rmean.jack = rmeanglm(
+            formula = Hist(Toutfin, type1b) ~ tr + V5 + V6,
+            time = tmax,
+            cause = "1",
+            link = link,
+            data = data),
+        rmean.infjack = rmeanglm.infjack(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
+                                         time = tmax, cause = "1", link = link, data = data),
+        rmean.ipcwaalen = rmeanglm.ipcw(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
+                                     time = tmax, cause = "1", link = link, data = data,
+                                     model.censoring = "aareg"),
+        rmean.ipcwcoxph = rmeanglm.ipcw(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
+                                     time = tmax, cause = "1", link = link, data = data,
+                                     model.censoring = "coxph")
+    )
+
+
+    nmes <- as.data.frame(do.call(rbind, strsplit(names(results), ".", fixed = TRUE)))
+    colnames(nmes) <- c("parameter", "method")
+
+    res2 <- do.call(rbind, lapply(results, function(fit) {
+
+        data.frame(estimate = coefficients(fit)[2],
+        p.value = summary(fit)$coefficients[2, 4])
+
+    }))
+
+    res3 <- cbind(res2, nmes)
+
+    res3$n <- n
+    res3$cens.rate = cens.rate
+    res3$scenario = scenario
+    res3$link = link
+    res3$beta.cens <- paste(beta.cens, collapse = "-")
+    res3
 
 }
 
