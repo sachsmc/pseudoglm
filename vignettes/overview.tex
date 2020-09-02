@@ -1,0 +1,228 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={Overview and comparison of methods},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage[]{natbib}
+\bibliographystyle{plainnat}
+
+\title{Overview and comparison of methods}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+\hypertarget{introduction}{%
+\section{Introduction}\label{introduction}}
+
+Let \(T\) denote the time to event, and \(\Delta \in \{1, \ldots, d\}\)
+denote the indicator of the cause of the event for \(d\) competing
+causes. In analyses of these sort of data, it may be of interest to
+estimate and model the cause specific cumulative incidence of cause
+\(1\) (WOLOG) at a particular time \(t^*\): \[
+P(T < t^*, \Delta = 1)
+\] or the restricted mean life years lost due to cause \(1\) up to time
+\(t^*\): \[
+\int_0^{t^*} P(T < u, \Delta = 1) \, du.
+\]
+
+\citet{andersen_cause-specific_2013}
+
+\hypertarget{methods-of-calculating-pseudo-observations}{%
+\section{Methods of calculating
+pseudo-observations}\label{methods-of-calculating-pseudo-observations}}
+
+\hypertarget{the-og-pseudo-observation-approach}{%
+\subsection{The OG pseudo-observation
+approach}\label{the-og-pseudo-observation-approach}}
+
+\citet{andersen_generalised_2003} developed the original approach using
+the jackknife. Let \(\theta\) denote the parameter of interest and
+\(\hat{\theta}\) the estimate using all of the observations. Let
+\(\hat{\theta}_{-i}\) denote the estimate obtained by leaving the
+\(i\)th observation out of the sample and recomputing the estimate. Then
+the \(i\)th pseudo-observation is
+\(P_i = n \hat{\theta} - (n - 1) \hat{\theta}_{-i}\).
+
+When \(\theta\) is the cumulative incidence and the estimate is based on
+the Aalen-Johansen estimator, then there are some computational tricks
+so that the estimator does not need to be rerun \(n\) times. This
+approach is implemented in the prodlim package \citep{prodlim} with some
+slight modifications by me to be more memory saving when there is a
+large dataset. In the case of the restricted mean, no such tricks are
+readily implemented and we recompute the Aalen-Johansen \(n\) times and
+integrate each time.
+
+\citet{andersen_pseudo-observations_2010}
+
+\hypertarget{the-infintesimal-jackknife-approach}{%
+\subsection{The infintesimal jackknife
+approach}\label{the-infintesimal-jackknife-approach}}
+
+We can rewrite the \(i\)th pseudo-observation as
+\(P_i = \hat{\theta} + (n - 1) (\hat{\theta} - \hat{\theta}_{-i})\), and
+note that
+\((\hat{\theta} - \hat{\theta}_{-i}) \approx \partial \hat{\theta}/\partial w_i\),
+where \(w_i\) is the case weight for subject \(i\). The right side of
+that equation is approximated by a Taylor series expansion, and is in
+fact the \(i\) subjects contribution to the empirical influence function
+of \(\theta\). Calculation of the influence function contributions is
+done already by the survival package \citep{survival-package}, and
+returned to the user as of version 3.0. We use these influence functions
+in the calculation of \(P_i\) as above for the cumulative incidence. The
+calculation for the restricted mean is slightly more involved because it
+involves all influence functions up to time \(t^*\), but no additional
+recalculation is needed.
+
+Expand on this because it is being described for the first time
+\citet{jaeckel1972infinitesimal}, \citet{efron1992bootstrap}
+
+\hypertarget{inverse-probability-of-censoring-weighted}{%
+\subsection{Inverse probability of censoring
+weighted}\label{inverse-probability-of-censoring-weighted}}
+
+We have also implemented the pseudo observation estimators as described
+by \citet{overgaard2019pseudo}. We allow the option of either a Cox
+model of Aalen's additive hazards model for estimating the probabilities
+of remaining uncensored.
+
+\hypertarget{regression-models}{%
+\section{Regression models}\label{regression-models}}
+
+\hypertarget{advantages-over-cox-regression}{%
+\subsection{Advantages over Cox
+regression}\label{advantages-over-cox-regression}}
+
+Collapsibility of the risk difference/risk ratio. Causal inference.
+
+Interpretability in terms of absolute risk.
+
+No need to assume proportional hazards.
+
+\hypertarget{estimation}{%
+\subsection{Estimation}\label{estimation}}
+
+\hypertarget{variance-estimation}{%
+\subsection{Variance estimation}\label{variance-estimation}}
+
+\hypertarget{simulation-study}{%
+\section{Simulation study}\label{simulation-study}}
+
+We conducted a simulation study with the goal of determining which
+methods should be used as the defaults in our package. The key criteria
+are validity, as measured by type I error rates, bias, and confidence
+interval coverage, robustness to misspecification of the censoring
+mechanism, and statistical efficiency. A lesser concern is computational
+efficiency.
+
+We generated datasets with competing risks according to
+\citet{beyersmann09} as follows: We first generated a binary covariate
+\(Z\) as Bernoulli with probability 0.5, and two independent standard
+normal variables \(X_1, X_2\). Then \(\mathbf{Q} = (1, Z, X_1, X_2)\).
+We used a proportional hazards Weibull distribution to generate the time
+data for \(k = 1, 2\), with a hazard of:
+\(h_k(t|\mathbf{Q})= \gamma_k*(1/e^{(\mathbf{Q}^T{\zeta}_k)})^{\gamma_k}*t^{\gamma_k-1}\)
+and a cumulative hazard given by:
+\(H_k(t|\mathbf{Q})= (1/e^{(\mathbf{Q}^T{\zeta}_k)})^{\gamma_k}*(t)^{\gamma_k},\)
+where \(\mathbf{Q}\) is the vector of all covariates of interest in this
+order \((1, Z, X1,X2)\), which then correspond to the cause specific
+vector of coefficients
+\({\zeta}_k=(\zeta_0,\zeta_z, \zeta_{x1}, \zeta_{x2})\). The overall
+survivor function is then given by:
+\(Surv(t|\mathbf{Q}) = \mbox{Exp}{(-\sum_k H_k(t|\mathbf{Q}))}.\)
+
+We create overall survival times by inverting the CDF, one less the
+survivor, using the probability integral transform to obtain overall
+survival times, \(Tov\). We then determine which of the event types a
+time belongs to by randomly generating from a Bernoulli with probability
+\(h_m(Tov|\mathbf{Q})/(h_m(Tov|\mathbf{Q})+h_{m'}(Tov|\mathbf{Q}))\) and
+assigning event type 1 if 1 and 2 if 0. We then generate censoring times
+using \texttt{rweibull} with shape parameter equal to
+\(e^{\mathbf{Q}^T \alpha}\) and scale parameter \(2 \gamma_1\). The
+intercept (i.e., first element) of \(\alpha\) determines the amount of
+censoring, and whether the remaining coefficients are non-zero
+determines whether the censoring depends on covariates.
+
+The true values of the coefficients were determined by generated a very
+large sample of covariates \(\mathbf{Q}\), then calculating the
+corresponding true values of the cumulative incidence or restricted mean
+life time lost, and finally regressing those true values against the
+covariates using the link function. Samples large enough to acheive a
+precision of 1e-4 on the coefficient values were used.
+
+\hypertarget{data-example}{%
+\section{Data example}\label{data-example}}
+
+\hypertarget{model-estimation}{%
+\subsection{Model estimation}\label{model-estimation}}
+
+\hypertarget{additional-features}{%
+\subsection{Additional features}\label{additional-features}}
+
+Plotting of residuals \citet{perme2008checking}, Inverse probability
+weighted for case cohort studies \citet{parner2020cumulative},
+Prediction,
+
+\hypertarget{conclusion}{%
+\section{Conclusion}\label{conclusion}}
+
+\renewcommand\refname{References}
+  \bibliography{pobib.bib}
+
+\end{document}

@@ -4,18 +4,10 @@
 \alias{true_values}
 \title{Get true values of the regression coefficients}
 \usage{
-true_values(
-  scenario = "0",
-  tmax,
-  link = "identity",
-  nchunk = 500,
-  chunks = 100
-)
+true_values(scenario = "0", link = "identity", nchunk = 500, chunks = 100)
 }
 \arguments{
 \item{scenario}{Character string identifying the scenario}
-
-\item{tmax}{Time horizon}
 
 \item{link}{Link function}
 

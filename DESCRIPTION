@@ -1,21 +1,25 @@
 Package: pseudoglm
 Type: Package
-Title: Regression Models for Event History Outcomes
-Version: 0.1.0
+Title: Simulation studies for the eventglm package
+Version: 0.5.0
 Author: Michael C Sachs and Morten Overgaard
 Maintainer: Michael C Sachs <sachsmc@gmail.com>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Description: Tools for running and reporting the simulation study to evaluate the performance of the
+        methods implemented in the eventglm package. 
 License: GPL >= 2
 Encoding: UTF-8
 LazyData: true
 Depends: 
     survival,
-    prodlim
+    prodlim,
+    eventglm
 Imports:
     sandwich
-RoxygenNote: 7.0.2
+RoxygenNote: 7.1.1
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown, 
+    data.table,
+    xtable,
+    ggplot2
 VignetteBuilder: knitr

@@ -1,18 +1,4 @@
 TODO
 ----
 
-- set up simulation functions
-    - null scenario for type I error
-    - bias and CI coverage, for non-null scenarios and different link functions for CI
-    - relative efficiency and performance of methods
-    - robustness to covariate dependent censoring
-- Xdocumentation for simulation set up
-- reorganize functions
-
-sim.times
-n  time
-200 .5
-500 1.2
-1000 3.5
-2500 18
 

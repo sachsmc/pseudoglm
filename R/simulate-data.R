@@ -43,13 +43,13 @@ switch_scenario <- function(scenario, beta.cens = c(1,0,0,0)) {
 
     } else if (scenario == "4") {
         b1 <- matrix(c(1, 1.5, 0, 0), nrow = 4)
-        b2 <- matrix(c(1, -1.5, 0, 0), nrow = 4)
+        b2 <- matrix(c(2.5, -1.5, 0, 0), nrow = 4)
 
         g1 <- 1.5
         g2 <- 1.5
 
     } else if (scenario == "5") {
-        b1 <- matrix(c(1, 2.5, .5, .5), nrow = 4)
+        b1 <- matrix(c(1, .75, .5, .5), nrow = 4)
         b2 <- matrix(c(1, 1, -1, -1), nrow = 4)
 
         g1 <- 1.5
@@ -172,16 +172,18 @@ sampletimesfunc <- function(mat,b1,g1,b2,g2) {
 #' @param gamma2 Shape for cause 2
 #' @param beta.cens Coefficients for censoring
 #' @param cens.rate Target censoring rate, used for testing
+#' @param gamma.cens Shape parameter of weibull for censoring, if 1 we have PH censoring
 #'
 #' @return A data frame with the simulated data
 #' @export
 #'
 
 genset_func<-function(n, beta1, gamma1, beta2, gamma2, beta.cens = c(0,0,0),
-                      cens.rate = .2){
+                      cens.rate = .2, gamma.cens = 3){
 
-    tr<-rbinom(n,1,0.5)
-    X3 <- matrix(rnorm(n * 2, mean = 0, sd = 1), ncol = 2)
+    tr<-rbinom(n,1,0.3)
+    X1 <- rnorm(n, mean = 4, sd = 1)
+    X2 <- exp(rnorm(n, mean = 0, sd = 1))
 
 
     if(!is.matrix(beta1)) {
@@ -194,18 +196,18 @@ genset_func<-function(n, beta1, gamma1, beta2, gamma2, beta.cens = c(0,0,0),
         beta10 <- beta1
         beta20 <- beta2
     }
-    matx<-cbind(1,tr,X3)
+    matx<-cbind(1,tr,X1, X2)
 
     Touts<-sampletimesfunc(matx,beta10,gamma1,beta20,gamma2)
 
     cen0 <- uniroot(function(c0) {
         lambda <- exp(matx %*% c(c0, beta.cens))
-        Cen<- rweibull(n, scale = lambda, shape = gamma1*2)
+        Cen<- rweibull(n, scale = lambda, shape = gamma.cens)
         cens.rate - mean(Cen < Touts)
     }, c(-1e4, 100))$root
 
     lambda <- exp(matx %*% c(cen0, beta.cens))
-    Cen<- rweibull(n, scale = lambda, shape = gamma1*2)
+    Cen<- rweibull(n, scale = lambda, shape = gamma.cens)
 
     type1<-rbinom(n,1,haz11(Touts,matx,beta10,gamma1)/(haz11(Touts,matx,beta10,gamma1)+
                                                            haz11(Touts,matx,beta20,gamma2)))
@@ -220,7 +222,7 @@ genset_func<-function(n, beta1, gamma1, beta2, gamma2, beta.cens = c(0,0,0),
 
     type1b<-ifelse(Cen<Touts, 0, type1)
 
-    dat1<-as.data.frame(cbind(ID, Toutfin, type1b, tr, X3, Touts, type1))
+    dat1<-data.frame(ID, Toutfin, type1b = factor(type1b, levels = c(0,1,2)), tr, X1, X2, Touts, type1)
 
     return(dat1)
 }
@@ -233,45 +235,72 @@ genset_func<-function(n, beta1, gamma1, beta2, gamma2, beta.cens = c(0,0,0),
 #' @param scenario Character identifying the scenario
 #' @param beta.cens Coefficients for the censoring distribution
 #' @param link Link function
+#' @param gamma.cens Shape parameter of weibull for censoring
 
 simulate_data <- function(n, scenario = "0", beta.cens = c(0,0,0), cens.rate = .2,
-                          link = "identity") {
+                          link = "identity", gamma.cens = 3) {
 
 
     b <- switch_scenario(scenario, beta.cens)
-    data <- genset_func(n, b$b1, b$g1, b$b2, b$g2, b$beta.cens, cens.rate = cens.rate)
+    data <- genset_func(n, b$b1, b$g1, b$b2, b$g2, b$beta.cens, cens.rate = cens.rate, gamma.cens = gamma.cens)
 
-    tmax <- quantile(data$Touts, .9)
+    tmax <- 2 #quantile(data$Touts[data$type1b != 0], .9)
 
     results <- list(
-        ci.jack = cumincglm(
-            formula = Hist(Toutfin, type1b) ~ tr + V5 + V6,
+        ci.jack = eventglm::cumincglm(
+            formula = Surv(Toutfin, type1b) ~ tr + X1 + X2,
             time = tmax,
             cause = "1",
             link = link,
             data = data),
-        ci.infjack = cumincglm.infjack(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
-                                       time = tmax, cause = "1", link = link, data = data),
-        ci.ipcwaalen = cumincglm.ipcw(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
-                                      time = tmax, cause = "1", link = link, data = data,
-                                      model.censoring = "aareg"),
-        ci.ipcwcoxph = cumincglm.ipcw(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
-                                      time = tmax, cause = "1", link = link, data = data,
-                                      model.censoring = "coxph"),
-        rmean.jack = rmeanglm(
-            formula = Hist(Toutfin, type1b) ~ tr + V5 + V6,
+        ci.strat = eventglm::cumincglm(
+            formula = Surv(Toutfin, type1b) ~ tr + X1 + X2,
+            time = tmax,
+            cause = "1",
+            link = link,
+            data = data,
+            model.censoring = "stratified", formula.censoring = ~ tr),
+        ci.ipcwaalen = eventglm::cumincglm(
+            formula = Surv(Toutfin, type1b) ~ tr + X1 + X2,
+            time = tmax,
+            cause = "1",
+            link = link,
+            data = data,
+            model.censoring = "aareg", formula.censoring = ~ tr + X1),
+        ci.ipcwcoxph = eventglm::cumincglm(
+            formula = Surv(Toutfin, type1b) ~ tr + X1 + X2,
+            time = tmax,
+            cause = "1",
+            link = link,
+            data = data,
+            model.censoring = "coxph", formula.censoring = ~ tr + X1),
+        rmean.jack = eventglm::rmeanglm(
+            formula = Surv(Toutfin, type1b) ~ tr + X1 + X2,
             time = tmax,
             cause = "1",
             link = link,
             data = data),
-        rmean.infjack = rmeanglm.infjack(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
-                                         time = tmax, cause = "1", link = link, data = data),
-        rmean.ipcwaalen = rmeanglm.ipcw(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
-                                     time = tmax, cause = "1", link = link, data = data,
-                                     model.censoring = "aareg"),
-        rmean.ipcwcoxph = rmeanglm.ipcw(Surv(Toutfin, factor(type1b)) ~ tr + V5 + V6,
-                                     time = tmax, cause = "1", link = link, data = data,
-                                     model.censoring = "coxph")
+        rmean.strat = eventglm::rmeanglm(
+            formula = Surv(Toutfin, type1b) ~ tr + X1 + X2,
+            time = tmax,
+            cause = "1",
+            link = link,
+            data = data,
+            model.censoring = "stratified", formula.censoring = ~ tr),
+        rmean.ipcwaalen = eventglm::rmeanglm(
+            formula = Surv(Toutfin, type1b) ~ tr + X1 + X2,
+            time = tmax,
+            cause = "1",
+            link = link,
+            data = data,
+            model.censoring = "aareg", formula.censoring = ~ tr + X1),
+        rmean.ipcwcoxph = eventglm::rmeanglm(
+            formula = Surv(Toutfin, type1b) ~ tr + X1 + X2,
+            time = tmax,
+            cause = "1",
+            link = link,
+            data = data,
+            model.censoring = "coxph", formula.censoring = ~ tr + X1)
     )
 
 
@@ -281,7 +310,9 @@ simulate_data <- function(n, scenario = "0", beta.cens = c(0,0,0), cens.rate = .
     res2 <- do.call(rbind, lapply(results, function(fit) {
 
         data.frame(estimate = coefficients(fit)[2],
-        p.value = summary(fit)$coefficients[2, 4])
+                   std.err.rob = sqrt(diag(vcov(fit)))[2],
+                   std.err.cor = sqrt(diag(vcov(fit, type = "corrected")))[2],
+                   std.err.nai = sqrt(diag(vcov(fit, type = "naive")))[2])
 
     }))
 
@@ -292,6 +323,7 @@ simulate_data <- function(n, scenario = "0", beta.cens = c(0,0,0), cens.rate = .
     res3$scenario = scenario
     res3$link = link
     res3$beta.cens <- paste(beta.cens, collapse = "-")
+    res3$gamma.cens <- gamma.cens
     res3
 
 }
@@ -300,7 +332,6 @@ simulate_data <- function(n, scenario = "0", beta.cens = c(0,0,0), cens.rate = .
 #' Get true values of the regression coefficients
 #'
 #' @param scenario Character string identifying the scenario
-#' @param tmax Time horizon
 #' @param link Link function
 #' @param nchunk Sample size for each chunk
 #' @param chunks Number of chunks
@@ -308,11 +339,15 @@ simulate_data <- function(n, scenario = "0", beta.cens = c(0,0,0), cens.rate = .
 #' @return A list with the true coefficients for the cumulative incidence and restricted mean
 #' @export
 
-true_values <- function(scenario = "0", tmax, link = "identity",
+true_values <- function(scenario = "0", link = "identity",
                         nchunk = 500, chunks = 100) {
 
 
-    b <- switch_scenario(scenario)
+    b <- switch_scenario(scenario, beta.cens = c(0,0,0))
+    data <- genset_func(5000, b$b1, b$g1, b$b2, b$g2, b$beta.cens, cens.rate = 0, gamma.cens = 3)
+
+    tmax <- 2 #quantile(data$Toutfin, .9)
+
 
     cumincfunc <- function(t, Xi) {
 
@@ -329,9 +364,10 @@ true_values <- function(scenario = "0", tmax, link = "identity",
     n <- nchunk
 
     for(i in 1:chunks){
-        tr<-rbinom(n,1,0.5)
-        X3 <- matrix(rnorm(n * 2, mean = 0, sd = 1), ncol = 2)
-        bigX <- cbind(1, tr, X3)
+        tr<-rbinom(n,1,0.3)
+        X1 <- rnorm(n, mean = 4, sd = 1)
+        X2 <- exp(rnorm(n, mean = 0, sd = 1))
+        bigX <- cbind(1, tr,X1, X2)
         cuminc <- sapply(1:n, function(i) {
 
             cumincfunc(tmax, bigX[i,])
@@ -348,8 +384,8 @@ true_values <- function(scenario = "0", tmax, link = "identity",
         bigdat <- rbind(bigdat, data.frame(cuminc = cuminc, rmean = rmean, bigX[, -1]))
     }
 
-    ci.fit <- glm(cuminc ~ tr + V2 + V3, data = bigdat, family = quasi(link = link, variance = "constant"))
-    rmean.fit <- glm(rmean ~ tr + V2 + V3, data = bigdat, family = quasi(link = link, variance = "constant"))
+    ci.fit <- glm(cuminc ~ tr + X1 + X2, data = bigdat, family = quasi(link = link, variance = "constant"))
+    rmean.fit <- glm(rmean ~ tr + X1 + X2, data = bigdat, family = quasi(link = link, variance = "constant"))
 
     list(ci.coef = ci.fit$coefficients, rmean.coef = rmean.fit$coefficients)
 

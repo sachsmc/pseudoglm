@@ -2,16 +2,27 @@
 % Please edit documentation in R/simulate-data.R
 \name{simulate_data}
 \alias{simulate_data}
-\title{Simulate a dataset}
+\title{Simulate a dataset and run the analyses}
 \usage{
-simulate_data(n, scenario = "0", beta.cens = c(1, 0, 0, 0))
+simulate_data(
+  n,
+  scenario = "0",
+  beta.cens = c(0, 0, 0),
+  cens.rate = 0.2,
+  link = "identity",
+  gamma.cens = 3
+)
 }
 \arguments{
-\item{n}{Sample zie}
+\item{n}{Sample size}
 
 \item{scenario}{Character identifying the scenario}
 
 \item{beta.cens}{Coefficients for the censoring distribution}
+
+\item{link}{Link function}
+
+\item{gamma.cens}{Shape parameter of weibull for censoring}
 }
 \description{
 Wrapper for the used scenarios

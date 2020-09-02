@@ -1,11 +1,12 @@
 ---
-title: "Overview and comparison of methods"
+title: "Simulation methods"
 output: 
     rmarkdown::pdf_document:
         citation_package: natbib
+        keep_tex: true
 bibliography: pobib.bib
 vignette: >
-  %\VignetteIndexEntry{Overview and comparison of methods}
+  %\VignetteIndexEntry{Simulation methods}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -17,7 +18,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
+```{r setup, include = FALSE}
 #library(pseudoglm)
 ```
 
@@ -32,48 +33,11 @@ or the restricted mean life years lost due to cause $1$ up to time $t^*$:
 \int_0^{t^*} P(T < u, \Delta = 1) \, du.
 \]
 
-@andersen_cause-specific_2013
-
-# Methods of calculating pseudo-observations
-
-## The OG pseudo-observation approach
-
-@andersen_generalised_2003 developed the original approach using the jackknife. Let $\theta$ denote the parameter of interest and $\hat{\theta}$ the estimate using all of the observations. Let $\hat{\theta}_{-i}$ denote the estimate obtained by leaving the $i$th observation out of the sample and recomputing the estimate. Then the $i$th pseudo-observation is $P_i = n \hat{\theta} - (n - 1) \hat{\theta}_{-i}$. 
-
-When $\theta$ is the cumulative incidence and the estimate is based on the Aalen-Johansen estimator, then there are some computational tricks so that the estimator does not need to be rerun $n$ times. This approach is implemented in the prodlim package [@prodlim] with some slight modifications by me to be more memory saving when there is a large dataset. In the case of the restricted mean, no such tricks are readily implemented and we recompute the Aalen-Johansen $n$ times and integrate each time. 
-
-@andersen_pseudo-observations_2010
-
-
-## The infintesimal jackknife approach
-
-We can rewrite the $i$th pseudo-observation as $P_i = \hat{\theta} + (n - 1) (\hat{\theta} - \hat{\theta}_{-i})$, and note that $(\hat{\theta} - \hat{\theta}_{-i}) \approx \partial \hat{\theta}/\partial w_i$, where $w_i$ is the case weight for subject $i$. The right side of that equation is approximated by a Taylor series expansion, and is in fact the $i$ subjects contribution to the empirical influence function of $\theta$. Calculation of the influence function contributions is done already by the survival package [@survival-package], and returned to the user as of version 3.0. We use these influence functions in the calculation of $P_i$ as above for the cumulative incidence. The calculation for the restricted mean is slightly more involved because it involves all influence functions up to time $t^*$, but no additional recalculation is needed. 
-
-Expand on this because it is being described for the first time @jaeckel1972infinitesimal, @efron1992bootstrap
-
-## Inverse probability of censoring weighted
-
-We have also implemented the pseudo observation estimators as described by @overgaard2019pseudo. We allow the option of either a Cox model of Aalen's additive hazards model for estimating the probabilities of remaining uncensored.  
-
-
-# Regression models
-
-## Advantages over Cox regression
-
-Collapsibility of the risk difference/risk ratio. Causal inference.
-
-Interpretability in terms of absolute risk. 
-
-No need to assume proportional hazards.
-
-## Estimation
-
-## Variance estimation
-
+For an overview of the methods, see @andersen_cause-specific_2013.
 
 # Simulation study
 
-We conducted a simulation study with the goal of determining which methods should be used as the defaults in our package. The key criteria are validity, as measured by type I error rates, bias, and confidence interval coverage, robustness to misspecification of the censoring mechanism, and statistical efficiency. A lesser concern is computational efficiency. 
+We conducted a simulation study with the goal of determining which methods should be used as the defaults in our `eventglm` package. The key criteria are validity, as measured by type I error rates, bias, and confidence interval coverage, robustness to misspecification of the censoring mechanism, and statistical efficiency. A lesser concern is computational efficiency. 
 
 We generated datasets with competing risks according to @beyersmann09 as follows: 
 We first generated a binary covariate $Z$ as Bernoulli with probability 0.5, and two independent standard normal variables $X_1, X_2$. Then $\mathbf{Q} = (1, Z, X_1, X_2)$. 
@@ -84,21 +48,10 @@ where $\mathbf{Q}$ is the vector of all covariates of interest in this order $(1
 The overall survivor function is then given by:
 $Surv(t|\mathbf{Q}) = \mbox{Exp}{(-\sum_k H_k(t|\mathbf{Q}))}.$
 
-We create overall survival times by inverting the CDF, one less the survivor, using the probability integral transform to obtain overall survival times, $Tov$. We then determine which of the event types a time belongs to by randomly generating from a Bernoulli with probability $h_m(Tov|\mathbf{Q})/(h_m(Tov|\mathbf{Q})+h_{m'}(Tov|\mathbf{Q}))$ and assigning event type 1 if 1 and 2 if 0.  We then generate censoring times using `rweibull` with shape parameter equal to $e^{\mathbf{Q}^T \alpha}$ and scale parameter $2 \gamma_1$. The intercept (i.e., first element) of $\alpha$ determines the amount of censoring, and whether the remaining coefficients are non-zero determines whether the censoring depends on covariates.
+We create overall survival times by inverting the CDF, one less the survivor, using the probability integral transform to obtain overall survival times, $Tov$. We then determine which of the event types a time belongs to by randomly generating from a Bernoulli with probability $h_m(Tov|\mathbf{Q})/(h_m(Tov|\mathbf{Q})+h_{m'}(Tov|\mathbf{Q}))$ and assigning event type 1 if 1 and 2 if 0.  We then generate censoring times using `rweibull` with shape parameter equal to $e^{\mathbf{Q}^T \alpha}$ and scale parameter $\gamma_c$. The intercept (i.e., first element) of $\alpha$ determines the amount of censoring, and whether the remaining coefficients are non-zero determines whether the censoring depends on covariates. When $\gamma_c = 1$, the censoring times follow a proportional hazards model, and thus the Cox model for the censoring times is correctly specified. 
 
 The true values of the coefficients were determined by generated a very large sample of covariates $\mathbf{Q}$, then calculating the corresponding true values of the cumulative incidence or restricted mean life time lost, and finally regressing those true values against the covariates using the link function. Samples large enough to acheive a precision of 1e-4 on the coefficient values were used. 
 
-# Data example
-
-## Model estimation
-
-## Additional features
-
-Plotting of residuals @perme2008checking,
-Inverse probability weighted for case cohort studies @parner2020cumulative, 
-Prediction, 
-
-# Conclusion
 
 # References
 

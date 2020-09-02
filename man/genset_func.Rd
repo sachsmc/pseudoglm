@@ -10,8 +10,9 @@ genset_func(
   gamma1,
   beta2,
   gamma2,
-  beta.cens = c(0, 0, 0, 0),
-  cens.rate = 0.2
+  beta.cens = c(0, 0, 0),
+  cens.rate = 0.2,
+  gamma.cens = 3
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ genset_func(
 \item{beta.cens}{Coefficients for censoring}
 
 \item{cens.rate}{Target censoring rate, used for testing}
+
+\item{gamma.cens}{Shape parameter of weibull for censoring, if 1 we have PH censoring}
 }
 \value{
 A data frame with the simulated data
